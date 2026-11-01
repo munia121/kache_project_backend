@@ -38,6 +38,9 @@ export interface IUpdateProfilePayload {
   avatar?: string | null;
   areaId?: string | null;
   address?: string | null;
+  role?: UserRole | string;
+  shopName?: string | null;
+  bio?: string | null;
 }
 
 /**

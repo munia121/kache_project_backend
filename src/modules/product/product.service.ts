@@ -157,14 +157,81 @@ export const getAllProducts = async (
   // 2. Dynamic AND conditions array
   const andConditions: Prisma.ProductWhereInput[] = [];
 
-  // Search by title or description (case-insensitive)
+  // Search across title, description, category, and area (case-insensitive) with Bengali/English term mapping
   const searchTerm = (filters.searchTerm || filters.search)?.toString().trim();
   if (searchTerm) {
+    const rawTerm = searchTerm.toLowerCase();
+
+    // Map common Bengali & English synonyms
+    const synonymsMap: Record<string, string[]> = {
+      স্যামসাং: ['samsung', 'galaxy'],
+      samsung: ['স্যামসাং', 'galaxy'],
+      galaxy: ['স্যামসাং', 'samsung'],
+      মোবাইল: ['mobile', 'phone', 'gadget', 'handset', 'smartphone', 'samsung', 'oppo'],
+      ফোন: ['phone', 'mobile', 'handset', 'smartphone', 'oppo', 'samsung'],
+      phone: ['ফোন', 'mobile', 'smartphone'],
+      mobile: ['মোবাইল', 'phone', 'gadget', 'smartphone'],
+      mobiles: ['মোবাইল', 'phone', 'gadget', 'smartphone'],
+      gadget: ['গ্যাজেট', 'gadgets', 'mobile'],
+      gadgets: ['গ্যাজেট', 'gadget', 'mobile'],
+      smartphone: ['স্মার্টফোন', 'phone', 'mobile'],
+      smartphones: ['স্মার্টফোন', 'phone', 'mobile'],
+      স্মার্টফোন: ['smartphone', 'phone', 'mobile'],
+      সোফা: ['sofa', 'couch', 'furniture'],
+      sofa: ['সোফা', 'couch', 'furniture'],
+      ফার্নিচার: ['furniture', 'sofa', 'table', 'chair', 'bed'],
+      furniture: ['ফার্নিচার', 'sofa'],
+      ওপ্পো: ['oppo'],
+      oppo: ['ওপ্পো'],
+      আইফোন: ['iphone', 'apple'],
+      iphone: ['আইফোন', 'apple'],
+      ল্যাপটপ: ['laptop', 'computer'],
+      laptop: ['ল্যাপটপ'],
+      কম্পিউটার: ['computer', 'pc'],
+      computer: ['কম্পিউটার'],
+      গাড়ি: ['car', 'vehicle'],
+      বাইক: ['bike', 'motorcycle'],
+      পোশাক: ['fashion', 'dress', 'clothes'],
+      fashion: ['পোশাক', 'dress'],
+      ধানমন্ডি: ['dhanmondi'],
+      dhanmondi: ['ধানমন্ডি'],
+      বনানী: ['banani'],
+      banani: ['বনানী'],
+      মিরপুর: ['mirpur'],
+      mirpur: ['মিরপুর'],
+      গুলশান: ['gulshan'],
+      gulshan: ['গুলশান'],
+      উত্তরা: ['uttara'],
+      uttara: ['উত্তরা'],
+      বাড্ডা: ['badda'],
+      badda: ['বাড্ডা'],
+      মোহাম্মদপুর: ['mohammadpur'],
+      mohammadpur: ['মোহাম্মদপুর'],
+      মতিঝিল: ['motijheel'],
+      motijheel: ['মতিঝিল'],
+      ঢাকা: ['dhaka'],
+      dhaka: ['ঢাকা'],
+    };
+
+    const relatedTerms = synonymsMap[rawTerm] || [];
+    const allSearchTerms = Array.from(new Set([searchTerm, ...relatedTerms]));
+
+    const searchOrConditions: Prisma.ProductWhereInput[] = [];
+
+    for (const term of allSearchTerms) {
+      searchOrConditions.push(
+        { title: { contains: term, mode: 'insensitive' } },
+        { description: { contains: term, mode: 'insensitive' } },
+        { category: { name: { contains: term, mode: 'insensitive' } } },
+        { category: { slug: { contains: term, mode: 'insensitive' } } },
+        { area: { name: { contains: term, mode: 'insensitive' } } },
+        { area: { bnName: { contains: term, mode: 'insensitive' } } },
+        { area: { slug: { contains: term, mode: 'insensitive' } } }
+      );
+    }
+
     andConditions.push({
-      OR: [
-        { title: { contains: searchTerm, mode: 'insensitive' } },
-        { description: { contains: searchTerm, mode: 'insensitive' } },
-      ],
+      OR: searchOrConditions,
     });
   }
 
@@ -240,11 +307,20 @@ export const getAllProducts = async (
     });
   }
 
-  // Cascading Location Filter (area -> district -> division by id or slug)
-  if (filters.area) {
+  // Cascading Location Filter (area -> district -> division by id, slug, or name)
+  const areaFilter = (filters.area || (filters as any).areaId)?.toString().trim();
+  if (areaFilter) {
+    const cleanArea = areaFilter.split(',')[0].trim();
     andConditions.push({
       area: {
-        OR: [{ id: filters.area }, { slug: filters.area }],
+        OR: [
+          { id: areaFilter },
+          { id: cleanArea },
+          { slug: areaFilter.toLowerCase() },
+          { slug: cleanArea.toLowerCase() },
+          { name: { contains: cleanArea, mode: 'insensitive' } },
+          { bnName: { contains: cleanArea, mode: 'insensitive' } },
+        ],
       },
     });
   } else if (filters.district) {

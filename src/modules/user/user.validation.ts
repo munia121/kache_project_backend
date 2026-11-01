@@ -30,6 +30,20 @@ export const updateProfileZodSchema = z.object({
     .trim()
     .optional()
     .nullable(),
+  role: z
+    .enum(['USER', 'SELLER'])
+    .optional(),
+  shopName: z
+    .string({ invalid_type_error: 'Shop name must be a string' })
+    .trim()
+    .max(150, 'Shop name cannot exceed 150 characters')
+    .optional()
+    .nullable(),
+  bio: z
+    .string({ invalid_type_error: 'Bio must be a string' })
+    .trim()
+    .optional()
+    .nullable(),
 });
 
 /**

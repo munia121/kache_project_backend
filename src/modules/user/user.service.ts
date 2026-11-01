@@ -101,6 +101,27 @@ export const updateProfile = async (
     updateData.address = payload.address ? payload.address.trim() : null;
   }
 
+  if (payload.role !== undefined) {
+    if (
+      existingUser.role !== UserRole.ADMIN &&
+      existingUser.role !== UserRole.SUPER_ADMIN
+    ) {
+      if (payload.role === 'USER' || payload.role === UserRole.USER) {
+        updateData.role = UserRole.USER;
+      } else if (payload.role === 'SELLER' || payload.role === UserRole.SELLER) {
+        updateData.role = UserRole.SELLER;
+      }
+    }
+  }
+
+  if (payload.shopName !== undefined) {
+    updateData.shopName = payload.shopName ? payload.shopName.trim() : null;
+  }
+
+  if (payload.bio !== undefined) {
+    updateData.bio = payload.bio ? payload.bio.trim() : null;
+  }
+
   const updatedUser = await prisma.user.update({
     where: { id: userId },
     data: updateData,
