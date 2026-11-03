@@ -41,9 +41,12 @@ model User {
   updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
   // Relations (pore product add korar shomoy link hobe)
-  locationArea Area?      @relation(fields: [areaId], references: [id], onDelete: SetNull)
-  products     Product[]
-  wishlists    Wishlist[]
+  locationArea        Area?          @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  products            Product[]
+  wishlists           Wishlist[]
+  buyerConversations  Conversation[] @relation("BuyerConversations")
+  sellerConversations Conversation[] @relation("SellerConversations")
+  sentMessages        Message[]      @relation("SentMessages")
 
   @@index([areaId], map: "idx_users_area_id")
   @@map("users")

@@ -35,10 +35,11 @@ model Product {
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
   // Relations
-  seller    User       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  category  Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  area      Area?      @relation(fields: [areaId], references: [id], onDelete: SetNull)
-  wishlists Wishlist[]
+  seller        User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  area          Area?          @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  wishlists     Wishlist[]
+  conversations Conversation[] @relation("ProductConversations")
 
   @@index([sellerId], map: "idx_products_seller_id")
   @@index([categoryId], map: "idx_products_category_id")
