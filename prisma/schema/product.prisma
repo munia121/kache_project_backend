@@ -2,6 +2,7 @@
 
 enum ProductStatus {
   AVAILABLE
+  ACTIVE
   SOLD
   ARCHIVED
 
@@ -31,6 +32,7 @@ model Product {
   sellerId     String           @map("seller_id")
   categoryId   String?          @map("category_id")
   areaId       String?          @map("area_id")
+  stock        Int              @default(10)
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
@@ -40,6 +42,7 @@ model Product {
   area          Area?          @relation(fields: [areaId], references: [id], onDelete: SetNull)
   wishlists     Wishlist[]
   conversations Conversation[] @relation("ProductConversations")
+  cartItems     CartItem[]
 
   @@index([sellerId], map: "idx_products_seller_id")
   @@index([categoryId], map: "idx_products_category_id")
