@@ -7,9 +7,18 @@ import { AuthenticatedSocket } from './socket.interface';
 let ioInstance: Server | null = null;
 
 export const initSocket = (httpServer: HttpServer): Server => {
+  const allowedOrigins: (string | RegExp)[] = [
+    'https://kache-pink.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:3001',
+    /^http:\/\/localhost:[0-9]+$/,
+    /^http:\/\/127\.0\.0\.1:[0-9]+$/,
+  ];
+
   const options: Partial<ServerOptions> = {
     cors: {
-      origin: '*',
+      origin: allowedOrigins,
       credentials: true,
     },
     transports: ['websocket', 'polling'],

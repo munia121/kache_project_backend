@@ -11,9 +11,21 @@ const app: Application = express();
 // ==========================================
 // Global Middlewares
 // ==========================================
+const allowedOrigins: (string | RegExp)[] = [
+  'https://kache-pink.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:3001',
+  /^http:\/\/localhost:[0-9]+$/,
+  /^http:\/\/127\.0\.0\.1:[0-9]+$/,
+  ...(config.client_url
+    ? config.client_url.split(',').map((url) => url.trim()).filter(Boolean)
+    : []),
+];
+
 app.use(
   cors({
-    origin: config.client_url || true,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
