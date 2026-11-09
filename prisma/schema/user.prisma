@@ -15,17 +15,28 @@ enum UserStatus {
   @@map("user_status_enum")
 }
 
+enum SellerStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("seller_status_enum")
+}
+
 model User {
   id String @id @default(uuid())
 
-  fullName        String     @map("full_name") @db.VarChar(150)
-  phone           String     @unique @db.VarChar(20)
-  email           String?    @unique @db.VarChar(255)
-  passwordHash    String     @map("password_hash") @db.VarChar(255)
-  role            UserRole   @default(USER)
-  status          UserStatus @default(ACTIVE)
-  avatar          String?    @db.VarChar(255)
-  isEmailVerified Boolean    @default(false) @map("is_email_verified")
+  fullName        String       @map("full_name") @db.VarChar(150)
+  phone           String       @unique @db.VarChar(20)
+  email           String?      @unique @db.VarChar(255)
+  passwordHash    String       @map("password_hash") @db.VarChar(255)
+  role            UserRole     @default(USER)
+  status          UserStatus   @default(ACTIVE)
+  sellerStatus    SellerStatus @default(NONE) @map("seller_status")
+  rejectionReason String?      @map("rejection_reason") @db.Text
+  avatar          String?      @db.VarChar(255)
+  isEmailVerified Boolean      @default(false) @map("is_email_verified")
 
   shopName String? @map("shop_name") @db.VarChar(150)
   bio      String? @db.Text
@@ -50,5 +61,6 @@ model User {
   cart                Cart?
 
   @@index([areaId], map: "idx_users_area_id")
+  @@index([sellerStatus], map: "idx_users_seller_status")
   @@map("users")
 }

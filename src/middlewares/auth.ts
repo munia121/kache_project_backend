@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
-import { UserRole, UserStatus } from '@prisma/client';
+import { UserRole, UserStatus, SellerStatus } from '@prisma/client';
 import AppError from '../errors/AppError';
 import catchAsync from '../utils/catchAsync';
 import { verifyJwtToken } from '../utils/auth';
 import prisma from '../config/prismaClient';
 
-export { UserRole, UserRole as Role };
+export { UserRole, UserRole as Role, SellerStatus };
 
 /**
  * Middleware to verify JWT token from Authorization header
@@ -54,6 +54,7 @@ export const verifyToken = catchAsync(
       phone: user.phone,
       role: user.role,
       email: user.email,
+      sellerStatus: user.sellerStatus,
     };
 
     next();

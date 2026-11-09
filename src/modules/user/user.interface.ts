@@ -1,7 +1,7 @@
-import { User, UserRole, Prisma, Area, District, Division, Product } from '@prisma/client';
+import { User, UserRole, SellerStatus, Prisma, Area, District, Division, Product } from '@prisma/client';
 
 export type IUser = User;
-export { UserRole, UserRole as Role };
+export { UserRole, UserRole as Role, SellerStatus };
 export type IUserCreate = Prisma.UserCreateInput;
 export type IUserUpdate = Prisma.UserUpdateInput;
 
@@ -28,6 +28,52 @@ export interface IBecomeSellerPayload {
   termsAccepted: boolean;
   shopName?: string | null;
   bio?: string | null;
+}
+
+/**
+ * Payload for reviewing seller application (admin)
+ */
+export interface IReviewSellerApplicationPayload {
+  status: 'APPROVED' | 'REJECTED';
+  reason?: string;
+}
+
+/**
+ * Payload for revoking seller privileges (admin)
+ */
+export interface IRevokeSellerPayload {
+  reason?: string;
+}
+
+/**
+ * Result of revoking seller privileges
+ */
+export interface IRevokeSellerResult {
+  demotedUser: IUserProfileResponse;
+  updatedProductsCount: number;
+}
+
+/**
+ * Filter and pagination options for seller applications (admin)
+ */
+export interface ISellerApplicationQueryOptions {
+  status?: SellerStatus | string;
+  page?: number | string;
+  limit?: number | string;
+  search?: string;
+}
+
+/**
+ * Paginated seller applications result
+ */
+export interface ISellerApplicationResult {
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPage: number;
+  };
+  data: IUserProfileResponse[];
 }
 
 /**

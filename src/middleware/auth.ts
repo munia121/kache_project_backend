@@ -6,5 +6,6 @@ export {
   authorize,
   UserRole,
   Role,
+  SellerStatus,
   default,
 } from '../middlewares/auth';
