@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient, UserRole, UserStatus, ProductCondition, ProductStatus } from '@prisma/client';
+import { PrismaClient, UserRole, UserStatus, SellerStatus, ProductCondition, ProductStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const connectionString = process.env.PRISMA_DATABASE_URL || process.env.DATABASE_URL;
@@ -498,6 +498,7 @@ interface IUserSeedItem {
   email: string;
   role: UserRole;
   status: UserStatus;
+  sellerStatus?: SellerStatus;
   isEmailVerified: boolean;
   shopName?: string;
   bio?: string;
@@ -549,6 +550,7 @@ const initialUsers: IUserSeedItem[] = [
     email: 'seller@kache.com',
     role: UserRole.SELLER,
     status: UserStatus.ACTIVE,
+    sellerStatus: SellerStatus.APPROVED,
     isEmailVerified: true,
     shopName: 'Rahim Gadget Point',
     bio: 'Authentic smartphones, laptops, and gadgets retailer in Dhaka.',
@@ -686,6 +688,7 @@ async function seedUsers(): Promise<Record<string, string>> {
         passwordHash: hashedPassword,
         role: user.role,
         status: user.status,
+        sellerStatus: user.sellerStatus ?? SellerStatus.NONE,
         isEmailVerified: user.isEmailVerified,
         shopName: user.shopName,
         bio: user.bio,
@@ -700,6 +703,7 @@ async function seedUsers(): Promise<Record<string, string>> {
         passwordHash: hashedPassword,
         role: user.role,
         status: user.status,
+        sellerStatus: user.sellerStatus ?? SellerStatus.NONE,
         isEmailVerified: user.isEmailVerified,
         shopName: user.shopName,
         bio: user.bio,

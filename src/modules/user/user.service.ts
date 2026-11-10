@@ -1,4 +1,4 @@
-import { Prisma, ProductStatus, UserRole } from '@prisma/client';
+import { Prisma, ProductStatus, UserRole, SellerStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import prisma from '../../config/prismaClient';
 import redis from '../../config/redis';
@@ -10,6 +10,9 @@ import {
   IMyListingsResult,
   IUserProfileResponse,
   IBecomeSellerPayload,
+  IReviewSellerApplicationPayload,
+  ISellerApplicationQueryOptions,
+  ISellerApplicationResult,
 } from './user.interface';
 
 /**
@@ -236,10 +239,15 @@ export const getMyListings = async (
 };
 
 /**
- * Become a seller onboarding workflow
- * - Checks current role: if already SELLER or ADMIN (or SUPER_ADMIN), throws 400 "You are already a registered seller"
- * - Prerequisite check: verifies user has verified phone or saved areaId, else throws 400 "Please set your default location and verify your phone number before becoming a seller"
- * - Updates role = 'SELLER' and optional shopName/bio
+ * Become a seller onboarding workflow (Application submission)
+ * - Checks current status:
+ *   - If already approved (or role is SELLER / ADMIN / SUPER_ADMIN), throws 400 "You are already a registered seller"
+ *   - If application is already PENDING, throws 400 "Your seller application is already pending admin approval"
+ * - Prerequisite check: verifies user has phone or saved areaId
+ * - STAGE 1: Sets sellerStatus = 'PENDING'
+ *   NON-NEGOTIABLE CONSTRAINT: DO NOT change user role to SELLER upon application submission.
+ *   The role MUST remain USER (BUYER) until an Admin/SuperAdmin explicitly approves it.
+ * - Updates optional shopName/bio
  * - Returns updated user object (excluding passwordHash) with populated locationArea hierarchy
  */
 export const becomeSeller = async (
@@ -255,19 +263,24 @@ export const becomeSeller = async (
     throw new AppError(404, 'User profile not found');
   }
 
-  // Check current role: If already SELLER or ADMIN (or SUPER_ADMIN)
+  // Check current role and approval status
   if (
     user.role === UserRole.SELLER ||
+    user.sellerStatus === SellerStatus.APPROVED ||
     user.role === UserRole.ADMIN ||
-    user.role === UserRole.SUPER_ADMIN ||
-    (user.role as string) === 'SELLER' ||
-    (user.role as string) === 'ADMIN' ||
-    (user.role as string) === 'SUPER_ADMIN'
+    user.role === UserRole.SUPER_ADMIN
   ) {
     throw new AppError(400, 'You are already a registered seller');
   }
 
-  // Prerequisite check: Verify the user has a verified phone number or a saved areaId (home location)
+  if (user.sellerStatus === SellerStatus.PENDING) {
+    throw new AppError(
+      400,
+      'Your seller application is already pending admin approval'
+    );
+  }
+
+  // Prerequisite check: Verify the user has a phone number or a saved areaId (home location)
   const hasPhone = Boolean(user.phone && user.phone.trim());
   const hasAreaId = Boolean(user.areaId);
 
@@ -279,7 +292,8 @@ export const becomeSeller = async (
   }
 
   const updateData: Prisma.UserUpdateInput = {
-    role: UserRole.SELLER,
+    // Role remains USER (BUYER). DO NOT set role to SELLER here!
+    sellerStatus: SellerStatus.PENDING,
   };
 
   if (payload.shopName !== undefined && payload.shopName !== null) {
@@ -302,12 +316,210 @@ export const becomeSeller = async (
   return safeUser;
 };
 
+/**
+ * Get all seller applications with filter, search, and pagination (Admin only)
+ */
+export const getSellerApplications = async (
+  query: ISellerApplicationQueryOptions = {}
+): Promise<ISellerApplicationResult> => {
+  const page = Math.max(1, parseInt(String(query.page || 1), 10) || 1);
+  const parsedLimit = parseInt(String(query.limit || 10), 10) || 10;
+  const limit = Math.max(1, Math.min(100, parsedLimit));
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.UserWhereInput = {};
+
+  // Status filter: default to PENDING unless ALL or specific status provided
+  if (query.status && query.status.toUpperCase() !== 'ALL') {
+    where.sellerStatus = query.status.toUpperCase() as SellerStatus;
+  } else if (!query.status) {
+    where.sellerStatus = SellerStatus.PENDING;
+  } else {
+    // If 'ALL', show users that have at least applied (i.e. not NONE)
+    where.sellerStatus = {
+      not: SellerStatus.NONE,
+    };
+  }
+
+  // Search filter across fullName, phone, email, shopName
+  if (query.search && query.search.trim()) {
+    const searchTrimmed = query.search.trim();
+    where.OR = [
+      { fullName: { contains: searchTrimmed, mode: 'insensitive' } },
+      { phone: { contains: searchTrimmed, mode: 'insensitive' } },
+      { email: { contains: searchTrimmed, mode: 'insensitive' } },
+      { shopName: { contains: searchTrimmed, mode: 'insensitive' } },
+    ];
+  }
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { updatedAt: 'desc' },
+      include: locationHierarchyInclude,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  const safeUsers = users.map((u) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...safeUser } = u;
+    return safeUser;
+  });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: safeUsers,
+  };
+};
+
+/**
+ * Get a single seller application by user ID (Admin only)
+ */
+export const getSellerApplicationById = async (
+  targetUserId: string
+): Promise<IUserProfileResponse> => {
+  const user = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    include: locationHierarchyInclude,
+  });
+
+  if (!user) {
+    throw new AppError(404, 'User application not found');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { passwordHash, ...safeUser } = user;
+  return safeUser;
+};
+
+/**
+ * Review seller application (Admin/SuperAdmin only)
+ * - When APPROVED: updates sellerStatus = 'APPROVED' and role = 'SELLER'
+ * - When REJECTED: updates sellerStatus = 'REJECTED' (role remains USER/BUYER)
+ */
+export const reviewSellerApplication = async (
+  targetUserId: string,
+  payload: IReviewSellerApplicationPayload
+): Promise<IUserProfileResponse> => {
+  const user = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    include: locationHierarchyInclude,
+  });
+
+  if (!user) {
+    throw new AppError(404, 'Target user profile not found');
+  }
+
+  if (payload.status === 'APPROVED') {
+    if (user.sellerStatus === SellerStatus.APPROVED && user.role === UserRole.SELLER) {
+      throw new AppError(400, 'User is already an approved seller');
+    }
+  }
+
+  const updateData: Prisma.UserUpdateInput = {};
+
+  if (payload.status === 'APPROVED') {
+    updateData.sellerStatus = SellerStatus.APPROVED;
+    updateData.role = UserRole.SELLER;
+  } else if (payload.status === 'REJECTED') {
+    updateData.sellerStatus = SellerStatus.REJECTED;
+    if (payload.reason) {
+      updateData.rejectionReason = payload.reason;
+    }
+    // Ensure role is USER
+    if (user.role === UserRole.SELLER) {
+      updateData.role = UserRole.USER;
+    }
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: targetUserId },
+    data: updateData,
+    include: locationHierarchyInclude,
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { passwordHash, ...safeUser } = updatedUser;
+  return safeUser;
+};
+
+/**
+ * Revoke seller privilege and demote user back to regular USER (Admin/SuperAdmin only)
+ * - Verifies that target user exists and currently has role === 'SELLER' or sellerStatus === 'APPROVED'
+ * - In a Prisma transaction:
+ *   1. Demotes user role from SELLER to USER, updates sellerStatus to REJECTED, and records rejectionReason
+ *   2. Deactivates all existing products of this seller (status: ARCHIVED)
+ */
+export const revokeSellerApplication = async (
+  userId: string,
+  reason?: string
+): Promise<{ demotedUser: IUserProfileResponse; updatedProductsCount: number }> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: locationHierarchyInclude,
+  });
+
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+
+  const isSeller =
+    user.role === UserRole.SELLER || user.sellerStatus === SellerStatus.APPROVED;
+  if (!isSeller) {
+    throw new AppError(400, 'User is not an active or approved seller');
+  }
+
+  const defaultReason =
+    'অ্যাডমিন কর্তৃক সেলার অ্যাকাউন্ট স্থগিত বা বাতিল করা হয়েছে।';
+  const finalReason =
+    reason && reason.trim().length > 0 ? reason.trim() : defaultReason;
+
+  const [demotedUser, updatedProducts] = await prisma.$transaction([
+    // 1. Demote user role and set status to REJECTED
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        role: UserRole.USER,
+        sellerStatus: SellerStatus.REJECTED,
+        rejectionReason: finalReason,
+      },
+      include: locationHierarchyInclude,
+    }),
+    // 2. Hide all live products of this revoked seller
+    prisma.product.updateMany({
+      where: { sellerId: userId },
+      data: {
+        status: ProductStatus.ARCHIVED,
+      },
+    }),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { passwordHash, ...safeUser } = demotedUser;
+  return {
+    demotedUser: safeUser,
+    updatedProductsCount: updatedProducts.count,
+  };
+};
+
 export const UserService = {
   getMyProfile,
   updateProfile,
   changePassword,
   getMyListings,
   becomeSeller,
+  getSellerApplications,
+  getSellerApplicationById,
+  reviewSellerApplication,
+  revokeSellerApplication,
 };
 
 export default UserService;

@@ -1,14 +1,18 @@
-import { Server } from 'http';
+import http, { Server } from 'http';
 import app from './app';
 import config from './config';
 import { prisma, pool } from './config/prismaClient';
 import { redis } from './config/redis';
+import { initSocket } from './socket';
 
 let server: Server;
 
 const main = async () => {
   try {
-    server = app.listen(config.port, () => {
+    const httpServer = http.createServer(app);
+    initSocket(httpServer);
+
+    server = httpServer.listen(config.port, () => {
       console.log(`🚀 Server is running on port ${config.port}`);
       console.log(`📍 Health Check: http://localhost:${config.port}/health`);
     });

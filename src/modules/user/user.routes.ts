@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { UserController } from './user.controller';
-import { verifyToken as auth } from '../../middlewares/auth';
+import { verifyToken as auth, authorize, UserRole } from '../../middlewares/auth';
 
 const router = Router();
 
@@ -43,12 +43,88 @@ router.get('/profile/my-listings', auth, UserController.getMyListings);
  */
 router.patch('/profile', auth, UserController.updateProfile);
 
+// ==========================================
+// Seller Application & Approval Routes
+// ==========================================
+
 /**
  * @route   PATCH /api/users/become-seller
- * @desc    Onboard regular user as a seller
+ * @desc    Submit application to become a seller (Sets status: PENDING, keeps role: USER)
  * @access  Protected (Authenticated user)
  */
 router.patch('/become-seller', auth, UserController.becomeSeller);
+
+/**
+ * @route   GET /api/users/seller-applications
+ * @desc    List seller onboarding applications (supports filters: status, search, pagination)
+ * @access  Protected (ADMIN, SUPER_ADMIN)
+ */
+router.get(
+  '/seller-applications',
+  auth,
+  authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  UserController.getSellerApplications
+);
+
+/**
+ * @route   GET /api/users/seller-applications/:id
+ * @desc    Get details of a single seller application
+ * @access  Protected (ADMIN, SUPER_ADMIN)
+ */
+router.get(
+  '/seller-applications/:id',
+  auth,
+  authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  UserController.getSellerApplicationById
+);
+
+/**
+ * @route   PATCH /api/users/seller-applications/:id
+ * @desc    Review seller application (approve or reject via { status: "APPROVED" | "REJECTED" })
+ * @access  Protected (ADMIN, SUPER_ADMIN)
+ */
+router.patch(
+  '/seller-applications/:id',
+  auth,
+  authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  UserController.reviewSellerApplication
+);
+
+/**
+ * @route   PATCH /api/users/seller-applications/:id/approve
+ * @desc    Approve seller application (sets sellerStatus: APPROVED, role: SELLER)
+ * @access  Protected (ADMIN, SUPER_ADMIN)
+ */
+router.patch(
+  '/seller-applications/:id/approve',
+  auth,
+  authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  UserController.approveSellerApplication
+);
+
+/**
+ * @route   PATCH /api/users/seller-applications/:id/reject
+ * @desc    Reject seller application (sets sellerStatus: REJECTED, keeps role: USER)
+ * @access  Protected (ADMIN, SUPER_ADMIN)
+ */
+router.patch(
+  '/seller-applications/:id/reject',
+  auth,
+  authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  UserController.rejectSellerApplication
+);
+
+/**
+ * @route   PATCH /api/users/seller-applications/:id/revoke
+ * @desc    Revoke seller privilege (demotes to USER, sets sellerStatus: REJECTED, archives live products)
+ * @access  Protected (ADMIN, SUPER_ADMIN)
+ */
+router.patch(
+  '/seller-applications/:id/revoke',
+  auth,
+  authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  UserController.revokeSellerApplication
+);
 
 export const UserRoutes = router;
 export default router;

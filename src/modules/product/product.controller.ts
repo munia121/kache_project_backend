@@ -256,6 +256,14 @@ export const createProduct = catchAsync(
       throw new AppError(401, 'Unauthorized access: user identity not verified');
     }
 
+    // Fast-fail AD POSTING GUARD: Block product creation if user.sellerStatus !== "APPROVED" or user.role !== "SELLER"
+    if (req.user.sellerStatus !== 'APPROVED' || req.user.role !== 'SELLER') {
+      throw new AppError(
+        403,
+        'Product creation blocked: Only approved sellers can post products. You must have sellerStatus APPROVED and role SELLER.'
+      );
+    }
+
     // Parse form-data / JSON body fields
     const parsedBody = parseProductBody(req.body);
     const { title, description, price } = parsedBody;

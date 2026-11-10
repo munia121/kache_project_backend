@@ -1,4 +1,4 @@
-import { Product, ProductCondition, ProductStatus, Prisma, UserRole } from '@prisma/client';
+import { Product, ProductCondition, ProductStatus, Prisma, UserRole, SellerStatus } from '@prisma/client';
 import prisma from '../../config/prismaClient';
 import AppError from '../../errors/AppError';
 import { UUID_REGEX } from '../../utils/validateUUID';
@@ -57,20 +57,20 @@ export const createProduct = async (
   sellerId: string,
   payload: ICreateProductPayload
 ): Promise<Product> => {
-  // Secondary safety check: verify seller.role !== 'USER' before creating product record
+  // AD POSTING GUARD: Block product creation if user.sellerStatus !== "APPROVED" or user.role !== "SELLER"
   const seller = await prisma.user.findUnique({
     where: { id: sellerId },
-    select: { id: true, role: true },
+    select: { id: true, role: true, sellerStatus: true },
   });
 
   if (!seller) {
     throw new AppError(404, 'Seller user not found');
   }
 
-  if (seller.role === UserRole.USER || (seller.role as string) === 'USER') {
+  if (seller.sellerStatus !== SellerStatus.APPROVED || seller.role !== UserRole.SELLER) {
     throw new AppError(
       403,
-      'Regular users cannot post products. You must complete seller onboarding first to post ads.'
+      'Product creation blocked: Only approved sellers can post products. You must have sellerStatus APPROVED and role SELLER.'
     );
   }
 

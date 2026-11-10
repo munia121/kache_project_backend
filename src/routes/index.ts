@@ -4,6 +4,8 @@ import { UserRoutes } from '../modules/user/user.routes';
 import { CategoryRoutes } from '../modules/category/category.routes';
 import { ProductRoutes } from '../modules/product/product.routes';
 import { LocationRoutes } from '../modules/location/location.routes';
+import { ChatRoutes } from '../modules/chat/chat.routes';
+import { CartRoutes } from './cart.routes';
 
 const router = Router();
 
@@ -28,6 +30,14 @@ const moduleRoutes: { path: string; route: Router }[] = [
   {
     path: '/locations',
     route: LocationRoutes,
+  },
+  {
+    path: '/chats',
+    route: ChatRoutes,
+  },
+  {
+    path: '/cart',
+    route: CartRoutes,
   },
   // {
   //   path: '/orders',

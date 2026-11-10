@@ -104,11 +104,54 @@ export const becomeSellerZodSchema = z.object({
     .nullable(),
 });
 
+/**
+ * Zod validation schema for reviewing a seller application (admin)
+ */
+export const reviewSellerApplicationZodSchema = z.object({
+  status: z.enum(['APPROVED', 'REJECTED'], {
+    errorMap: () => ({
+      message: 'Status must be either APPROVED or REJECTED',
+    }),
+  }),
+  reason: z.string().trim().optional(),
+});
+
+/**
+ * Zod validation schema for revoking seller privileges (admin)
+ */
+export const revokeSellerApplicationZodSchema = z.object({
+  reason: z.string().trim().optional(),
+});
+
+/**
+ * Zod validation schema for querying seller applications (admin)
+ */
+export const sellerApplicationQueryZodSchema = z.object({
+  status: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine(
+      (val) => !val || ['NONE', 'PENDING', 'APPROVED', 'REJECTED', 'ALL'].includes(val),
+      {
+        message: 'Invalid status. Allowed values: NONE, PENDING, APPROVED, REJECTED, ALL',
+      }
+    )
+    .optional()
+    .default('PENDING'),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(10),
+  search: z.string().trim().optional(),
+});
+
 export const UserValidation = {
   updateProfileZodSchema,
   changePasswordZodSchema,
   myListingsQueryZodSchema,
   becomeSellerZodSchema,
+  reviewSellerApplicationZodSchema,
+  revokeSellerApplicationZodSchema,
+  sellerApplicationQueryZodSchema,
 };
 
 export default UserValidation;
