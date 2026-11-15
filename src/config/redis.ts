@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 import config from './index';
 
-export const redis = new Redis(config.redis_url, {
+export const redis = new Redis(config.redis_url as string, {
   maxRetriesPerRequest: 3,
   retryStrategy(times) {
     const delay = Math.min(times * 50, 2000);
