@@ -1,39 +1,39 @@
 // Order Module Schema (Order, OrderItem, Enums)
 
 enum OrderStatus {
-  pending
-  processing
-  shipped
-  delivered
-  cancelled
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
 
-  @@map("order_status_enum")
+enum PaymentMethod {
+  COD
 }
 
 enum PaymentStatus {
-  unpaid
-  paid
-  failed
-  refunded
-
-  @@map("payment_status_enum")
+  UNPAID
+  PAID
 }
 
 model Order {
   id              String        @id @default(uuid())
   userId          String        @map("user_id")
-  status          OrderStatus   @default(pending)
+  status          OrderStatus   @default(PENDING)
   totalAmount     Decimal       @map("total_amount") @db.Decimal(10, 2)
   shippingAddress String        @map("shipping_address") @db.Text
-  paymentStatus   PaymentStatus @default(unpaid) @map("payment_status")
+  paymentMethod   PaymentMethod @default(COD) @map("payment_method")
+  paymentStatus   PaymentStatus @default(UNPAID) @map("payment_status")
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
   // Relations
-  // user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   orderItems      OrderItem[]
 
   @@index([userId], map: "idx_orders_user_id")
+  @@index([status], map: "idx_orders_status")
   @@map("orders")
 }
 
@@ -47,7 +47,7 @@ model OrderItem {
 
   // Relations
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  // product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([orderId], map: "idx_order_items_order_id")
   @@index([productId], map: "idx_order_items_product_id")

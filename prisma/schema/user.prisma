@@ -59,6 +59,7 @@ model User {
   sellerConversations Conversation[] @relation("SellerConversations")
   sentMessages        Message[]      @relation("SentMessages")
   cart                Cart?
+  orders              Order[]
 
   @@index([areaId], map: "idx_users_area_id")
   @@index([sellerStatus], map: "idx_users_seller_status")

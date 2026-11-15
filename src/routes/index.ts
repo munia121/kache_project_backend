@@ -6,6 +6,7 @@ import { ProductRoutes } from '../modules/product/product.routes';
 import { LocationRoutes } from '../modules/location/location.routes';
 import { ChatRoutes } from '../modules/chat/chat.routes';
 import { CartRoutes } from './cart.routes';
+import { OrderRoutes } from './order.routes';
 
 const router = Router();
 
@@ -39,10 +40,10 @@ const moduleRoutes: { path: string; route: Router }[] = [
     path: '/cart',
     route: CartRoutes,
   },
-  // {
-  //   path: '/orders',
-  //   route: orderRoutes,
-  // },
+  {
+    path: '/orders',
+    route: OrderRoutes,
+  },
 ];
 
 moduleRoutes.forEach((route) => {

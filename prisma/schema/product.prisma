@@ -43,6 +43,7 @@ model Product {
   wishlists     Wishlist[]
   conversations Conversation[] @relation("ProductConversations")
   cartItems     CartItem[]
+  orderItems    OrderItem[]
 
   @@index([sellerId], map: "idx_products_seller_id")
   @@index([categoryId], map: "idx_products_category_id")
